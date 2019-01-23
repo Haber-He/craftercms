@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
 
+# Copyright (C) 2007-2019 Crafter Software Corporation. All Rights Reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 if [ "$(whoami)" == "root" ]; then
-	echo -e "\033[38;5;196m"
-	echo -e "Crafter CMS cowardly refuses to run as root."
-    echo -e "Running as root is dangerous and is not supported."
-    echo -e "\033[0m"
-	exit 1
+  echo -e "\033[38;5;196m"
+  echo -e "Crafter CMS cowardly refuses to run as root."
+  echo -e "Running as root is dangerous and is not supported."
+  echo -e "\033[0m"
+  exit 1
 fi
 
 OSARCH=$(getconf LONG_BIT)
@@ -17,11 +32,11 @@ if [[ $OSARCH -eq "32" ]]; then
   exit 5
 fi
 
-export CRAFTER_HOME=${CRAFTER_HOME:=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}
-export CRAFTER_ROOT=${CRAFTER_ROOT:=$( cd "$CRAFTER_HOME/.." && pwd )}
-export DEPLOYER_HOME=${DEPLOYER_HOME:=$CRAFTER_HOME/crafter-deployer}
+export CRAFTER_BIN_DIR=${CRAFTER_BIN_DIR:=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}
+export CRAFTER_HOME=${CRAFTER_HOME:=$( cd "$CRAFTER_BIN_DIR/.." && pwd )}
+export DEPLOYER_HOME=${DEPLOYER_HOME:=$CRAFTER_BIN_DIR/crafter-deployer}
 
-. "$CRAFTER_HOME/crafter-setenv.sh"
+. "$CRAFTER_BIN_DIR/crafter-setenv.sh"
 
 function help() {
   echo $(basename $BASH_SOURCE)
@@ -52,14 +67,13 @@ function help() {
   exit 2;
 }
 
-
 function version(){
- echo "Copyright (C) 2007-2018 Crafter Software Corporation. All rights reserved."
- echo "Version @VERSION@-@GIT_BUILD_ID@"
+  echo "Copyright (C) 2007-2019 Crafter Software Corporation. All rights reserved."
+  echo "Version @VERSION@-@GIT_BUILD_ID@"
 }
 
 function manPages(){
-    man "$CRAFTER_HOME/crafter.sh.1"
+  man "$CRAFTER_BIN_DIR/crafter.sh.1"
 }
 function pidOf(){
   pid=$(lsof -i :$1 | grep LISTEN | awk '{print $2}' | grep -v PID)
@@ -91,8 +105,8 @@ function checkPortForRunning(){
 
 function printTailInfo(){
   echo -e "\033[38;5;196m"
-  echo "Log files live here: \"$CRAFTER_ROOT/logs/\". "
-  echo "To follow the main tomcat log, you can \"tail -f $CRAFTER_ROOT/logs/tomcat/catalina.out\""
+  echo "Log files live here: \"$CRAFTER_LOGS_DIR\". "
+  echo "To follow the main tomcat log, you can \"tail -f $CRAFTER_LOGS_DIR/tomcat/catalina.out\""
   echo -e "\033[0m"
 }
 
@@ -127,7 +141,7 @@ function stopDeployer() {
 }
 
 function startSolr() {
-  cd $CRAFTER_HOME
+  cd $CRAFTER_BIN_DIR
   echo "------------------------------------------------------------"
   echo "Starting Solr"
   echo "------------------------------------------------------------"
@@ -142,7 +156,7 @@ function startSolr() {
     ## Before run check if the port is available.
     possiblePID=$(pidOf $SOLR_PORT)
     if  [ -z "$possiblePID" ];  then
-      $CRAFTER_HOME/solr/bin/solr start -p $SOLR_PORT -s $SOLR_HOME -Dcrafter.solr.index=$SOLR_INDEXES_DIR -a "$SOLR_JAVA_OPTS"
+      $CRAFTER_BIN_DIR/solr/bin/solr start -p $SOLR_PORT -s $SOLR_HOME -Dcrafter.solr.index=$SOLR_INDEXES_DIR -a "$SOLR_JAVA_OPTS"
       echo $(pidOf $SOLR_PORT) > $SOLR_PID
     else
       echo $possiblePID > $SOLR_PID
@@ -166,7 +180,7 @@ function startSolr() {
 }
 
 function debugSolr() {
-  cd $CRAFTER_HOME
+  cd $CRAFTER_BIN_DIR
   echo "------------------------------------------------------------"
   echo "Starting Solr"
   echo "------------------------------------------------------------"
@@ -181,7 +195,7 @@ function debugSolr() {
     ## Before run check if the port is available.
     possiblePID=$(pidOf $SOLR_PORT)
     if  [ -z "$possiblePID" ];  then
-      $CRAFTER_HOME/solr/bin/solr start -p $SOLR_PORT -s $SOLR_HOME -Dcrafter.solr.index=$SOLR_INDEXES_DIR \
+      $CRAFTER_BIN_DIR/solr/bin/solr start -p $SOLR_PORT -s $SOLR_HOME -Dcrafter.solr.index=$SOLR_INDEXES_DIR \
       -a "$SOLR_JAVA_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=1044"
       echo $(pidOf $SOLR_PORT) > $SOLR_PID
     else
@@ -206,12 +220,12 @@ function debugSolr() {
 }
 
 function stopSolr() {
-  cd $CRAFTER_HOME
+  cd $CRAFTER_BIN_DIR
   echo "------------------------------------------------------------"
   echo "Stopping Solr"
   echo "------------------------------------------------------------"
   if [ -s "$SOLR_PID" ]; then
-    $CRAFTER_HOME/solr/bin/solr stop
+    $CRAFTER_BIN_DIR/solr/bin/solr stop
     if pgrep -F "$SOLR_PID"
     then
       killPID $SOLR_PID
@@ -231,95 +245,108 @@ function stopSolr() {
 }
 
 function startTomcat() {
-  cd $CRAFTER_HOME
-  if [[ ! -d "$CRAFTER_HOME/dbms" ]] || [[ -z $(pidOf "$MARIADB_PORT") ]] ;then
+  cd $CRAFTER_BIN_DIR
+  if [[ ! -d "$CRAFTER_BIN_DIR/dbms" ]] || [[ -z $(pidOf "$MARIADB_PORT") ]] ;then
+    echo "------------------------------------------------------------"
+    echo "Starting Tomcat"
+    echo "------------------------------------------------------------"
+    if [ ! -d $CATALINA_LOGS_DIR ]; then
+      mkdir -p $CATALINA_LOGS_DIR;
+    fi
+    if [ ! -d $CATALINA_TMPDIR ]; then
+      mkdir -p $CATALINA_TMPDIR;
+    fi
+    # Step 1, does the CATALINA_PID exist and is valid
+    if [ ! -s "$CATALINA_PID" ]; then
+      ## Before run check if the port is available.
+      possiblePID=$(pidOf $TOMCAT_HTTP_PORT)
 
-      echo "------------------------------------------------------------"
-      echo "Starting Tomcat"
-      echo "------------------------------------------------------------"
-      if [ ! -d $CATALINA_LOGS_DIR ]; then
-        mkdir -p $CATALINA_LOGS_DIR;
-      fi
-      # Step 1, does the CATALINA_PID exist and is valid
-      if [ ! -s "$CATALINA_PID" ]; then
-        ## Before run check if the port is available.
-        possiblePID=$(pidOf $TOMCAT_HTTP_PORT)
-
-        if  [ -z "$possiblePID" ];  then
-          export CATALINA_OPTS="$CATALINA_OPTS -Dcrafter.home=$CRAFTER_ROOT"
-          $CRAFTER_HOME/apache-tomcat/bin/catalina.sh start -secure
-        else
-          echo $possiblePID > $CATALINA_PID
-          echo "Process PID $possiblePID is listening port $TOMCAT_HTTP_PORT"
-          echo "Hijacking PID and saving into $CATALINA_PID"
-          exit
-        fi
+      if  [ -z "$possiblePID" ];  then
+        $CRAFTER_BIN_DIR/apache-tomcat/bin/catalina.sh start -security
       else
-        # Is it really up?
-        if ! checkPortForRunning $TOMCAT_HTTP_PORT $(cat "$CATALINA_PID");then
-          exit 4
-        fi
-        if ! pgrep -u `whoami` -F "$CATALINA_PID" >/dev/null
-        then
-          echo "Tomcat Pid file is not ok, forcing startup"
-          rm "$CATALINA_PID"
-          startTomcat
-        fi
-        echo "Tomcat already started"
+        echo $possiblePID > $CATALINA_PID
+        echo "Process PID $possiblePID is listening port $TOMCAT_HTTP_PORT"
+        echo "Hijacking PID and saving into $CATALINA_PID"
+        exit
       fi
-      else
-       echo ""
-       echo "Crafter CMS Database Port: $MARIADB_PORT is in use by process id $(pidOf "$MARIADB_PORT")."
-       echo "This might be because of a prior unsuccessful or incomplete shut down."
-       echo "Please terminate that process before attempting to start Crafter CMS."
-       read -t 10 #Time out for the read, (if gradle start)
-       exit -7
+    else
+      # Is it really up?
+      if ! checkPortForRunning $TOMCAT_HTTP_PORT $(cat "$CATALINA_PID");then
+        exit 4
+      fi
+      if ! pgrep -u `whoami` -F "$CATALINA_PID" >/dev/null
+      then
+        echo "Tomcat Pid file is not ok, forcing startup"
+        rm "$CATALINA_PID"
+        startTomcat
+      fi
+      echo "Tomcat already started"
+    fi
+  else
+    echo ""
+    echo "Crafter CMS Database Port: $MARIADB_PORT is in use by process id $(pidOf "$MARIADB_PORT")."
+    echo "This might be because of a prior unsuccessful or incomplete shut down."
+    echo "Please terminate that process before attempting to start Crafter CMS."
+    read -t 10 #Time out for the read, (if gradle start)
+    exit -7
   fi
 }
 
 function debugTomcat() {
-  cd $CRAFTER_HOME
-  echo "------------------------------------------------------------"
-  echo "Starting Tomcat"
-  echo "------------------------------------------------------------"
-  if [ ! -d $CATALINA_LOGS_DIR ]; then
-    mkdir -p $CATALINA_LOGS_DIR;
-  fi
-  # Step 1, does the CATALINA_PID exist and is valid
-  if [ ! -s "$CATALINA_PID" ]; then
-    # Before run check if the port is available.
-    possiblePID=$(pidOf $TOMCAT_HTTP_PORT)
+  cd $CRAFTER_BIN_DIR
+  if [[ ! -d "$CRAFTER_BIN_DIR/dbms" ]] || [[ -z $(pidOf "$MARIADB_PORT") ]] ;then
+    echo "------------------------------------------------------------"
+    echo "Starting Tomcat"
+    echo "------------------------------------------------------------"
+    if [ ! -d $CATALINA_LOGS_DIR ]; then
+      mkdir -p $CATALINA_LOGS_DIR;
+    fi
+    if [ ! -d $CATALINA_TMPDIR ]; then
+      mkdir -p $CATALINA_TMPDIR;
+    fi
+    # Step 1, does the CATALINA_PID exist and is valid
+    if [ ! -s "$CATALINA_PID" ]; then
+      ## Before run check if the port is available.
+      possiblePID=$(pidOf $TOMCAT_HTTP_PORT)
 
-    if  [ -z "$possiblePID" ];  then
-      $CRAFTER_HOME/apache-tomcat/bin/catalina.sh jpda start;
+      if  [ -z "$possiblePID" ];  then
+        $CRAFTER_BIN_DIR/apache-tomcat/bin/catalina.sh jpda start -security
+      else
+        echo $possiblePID > $CATALINA_PID
+        echo "Process PID $possiblePID is listening port $TOMCAT_HTTP_PORT"
+        echo "Hijacking PID and saving into $CATALINA_PID"
+        exit
+      fi
     else
-      echo $possiblePID > $CATALINA_PID
-      echo "Process PID $possiblePID is listening port $TOMCAT_HTTP_PORT"
-      echo "Hijacking PID and saving into $CATALINA_PID"
-      exit
+      # Is it really up?
+      if ! checkPortForRunning $TOMCAT_HTTP_PORT $(cat "$CATALINA_PID");then
+        exit 4
+      fi
+      if ! pgrep -u `whoami` -F "$CATALINA_PID" >/dev/null
+      then
+        echo "Tomcat Pid file is not ok, forcing startup"
+        rm "$CATALINA_PID"
+        startTomcat
+      fi
+      echo "Tomcat already started"
     fi
   else
-    # Is it really up?
-    if ! checkPortForRunning $TOMCAT_HTTP_PORT $(cat "$CATALINA_PID");then
-      exit 4
-    fi
-    if ! pgrep -u `whoami` -F "$CATALINA_PID" >/dev/null
-    then
-      echo "Tomcat Pid file is not ok, forcing startup"
-      rm "$CATALINA_PID"
-      debugTomcat
-    fi
-    echo "Tomcat already started"
+    echo ""
+    echo "Crafter CMS Database Port: $MARIADB_PORT is in use by process id $(pidOf "$MARIADB_PORT")."
+    echo "This might be because of a prior unsuccessful or incomplete shut down."
+    echo "Please terminate that process before attempting to start Crafter CMS."
+    read -t 10 #Time out for the read, (if gradle start)
+    exit -7
   fi
 }
 
 function stopTomcat() {
-  cd $CRAFTER_HOME
+  cd $CRAFTER_BIN_DIR
   echo "------------------------------------------------------------"
   echo "Stopping Tomcat"
   echo "------------------------------------------------------------"
   if [ -s "$CATALINA_PID" ]; then
-    $CRAFTER_HOME/apache-tomcat/bin/shutdown.sh -force
+    $CRAFTER_BIN_DIR/apache-tomcat/bin/shutdown.sh -force
     if [ -e "$CATALINA_PID" ]; then
       if pgrep -F "$CATALINA_PID"
       then
@@ -357,18 +384,18 @@ function startMongoDB(){
     fi
 
     if [ ! -d "$MONGODB_HOME" ]; then
-      cd $CRAFTER_HOME
+      cd $CRAFTER_BIN_DIR
       mkdir $MONGODB_HOME
       cd $MONGODB_HOME
       echo "MongoDB not found"
-      java -jar $CRAFTER_HOME/craftercms-utils.jar download mongodb
+      java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar download mongodb
       tar xvf mongodb.tgz --strip 1
       rm mongodb.tgz
     fi
     # Before run check if the port is available.
     possiblePID=$(pidOf $MONGODB_PORT)
     if  [ -z $possiblePID ];  then
-      $MONGODB_HOME/bin/mongod --dbpath=$CRAFTER_ROOT/data/mongodb --directoryperdb --journal --fork --logpath=$MONGODB_LOGS_DIR/mongod.log --port $MONGODB_PORT
+      $MONGODB_HOME/bin/mongod --dbpath=$CRAFTER_DATA_DIR/mongodb --directoryperdb --journal --fork --logpath=$MONGODB_LOGS_DIR/mongod.log --port $MONGODB_PORT
     else
       echo $possiblePID > $MONGODB_PID
       echo "Process PID $possiblePID is listening port $MONGODB_PORT"
@@ -393,11 +420,11 @@ function startMongoDB(){
 
 
 function isMongoNeeded() {
-   if [ -z "$1" ]; then
+  if [ -z "$1" ]; then
     test -s $PROFILE_WAR_PATH || test -d $PROFILE_DEPLOY_WAR_PATH
-   else
-      test "$1" = "forceMongo"
-   fi
+  else
+    test "$1" = "forceMongo"
+  fi
 }
 
 function stopMongoDB(){
@@ -407,7 +434,7 @@ function stopMongoDB(){
   if [ -s "$MONGODB_PID" ]; then
     case "$(uname -s)" in
       Linux)
-      $MONGODB_HOME/bin/mongod --shutdown --dbpath=$CRAFTER_ROOT/data/mongodb --logpath=$MONGODB_LOGS_DIR/mongod.log --port $MONGODB_PORT
+      $MONGODB_HOME/bin/mongod --shutdown --dbpath=$CRAFTER_DATA_DIR/mongodb --logpath=$MONGODB_LOGS_DIR/mongod.log --port $MONGODB_PORT
       ;;
       *)
       pkill -3 -F "$MONGODB_PID"
@@ -433,7 +460,6 @@ function stopMongoDB(){
   fi
 }
 
-
 function solrStatus(){
   echo "------------------------------------------------------------"
   echo "SOLR status                                                 "
@@ -442,7 +468,7 @@ function solrStatus(){
   solrStatusOut=$(curl --silent  -f "http://localhost:$SOLR_PORT/solr/admin/info/system?wt=json")
   if [ $? -eq 0 ]; then
     echo -e "PID\t"
-    echo `cat "$CRAFTER_ROOT/bin/solr/bin/solr-$SOLR_PORT.pid"`
+    echo `cat "$CRAFTER_HOME/bin/solr/bin/solr-$SOLR_PORT.pid"`
     echo -e  "uptime (in minutes):\t"
     echo "$solrStatusOut"  | python -m json.tool | grep upTimeMS | awk -F"[,|:]" '{print $2}'| awk '{print ($1/1000)/60}'| bc
     echo -e  "Solr Version:\t"
@@ -468,9 +494,9 @@ function deployerStatus(){
     echo "$deployerStatusOut"  | python -m json.tool | grep status | awk -F"[,|:]" '{print $2}'
     deployerVersion=$(curl --silent  -f  "http://localhost:$DEPLOYER_PORT/api/1/monitor/version")
     if [ $? -eq 0 ]; then
-        echo -e  "Version:\t"
-        printf $(echo "$deployerVersion"  | python -m json.tool | grep packageVersion | awk -F"[,|:]" '{print $2}')
-        echo "$deployerVersion"| python -m json.tool | grep -w build | awk -F"[,|:]" '{print $2}'
+      echo -e  "Version:\t"
+      printf $(echo "$deployerVersion"  | python -m json.tool | grep packageVersion | awk -F"[,|:]" '{print $2}')
+      echo "$deployerVersion"| python -m json.tool | grep -w build | awk -F"[,|:]" '{print $2}'
     fi
   else
     echo -e "\033[38;5;196m"
@@ -494,9 +520,9 @@ function studioStatus(){
     echo "$studioStatusOut" | python -m json.tool | grep status | awk -F"[,|:]" '{print $2}'
     deployerVersion=$(curl --silent  -f  "http://localhost:$TOMCAT_HTTP_PORT/studio/api/1/services/api/1/monitor/version.json")
     if [ $? -eq 0 ]; then
-        echo -e  "Version:\t"
-        printf "$(echo "$deployerVersion"  | python -m json.tool | grep packageVersion | awk -F"[,|:]" '{print $2}')"
-        echo  "$deployerVersion"| python -m json.tool | grep -w build | awk -F"[,|:]" '{print $2}'
+      echo -e  "Version:\t"
+      printf "$(echo "$deployerVersion"  | python -m json.tool | grep packageVersion | awk -F"[,|:]" '{print $2}')"
+      echo  "$deployerVersion"| python -m json.tool | grep -w build | awk -F"[,|:]" '{print $2}'
     fi
   else
     echo -e "\033[38;5;196m"
@@ -521,18 +547,18 @@ function mongoDbStatus(){
   echo "------------------------------------------------------------"
   echo "MongoDB status                                              "
   echo "------------------------------------------------------------"
- if $(isMongoNeeded $1) || [ ! -z $(pidOf $MONGODB_PORT) ]; then
-      if [ -e "$MONGODB_PID" ]; then
-        echo -e "MongoDB PID"
-        echo $(cat $MONGODB_PID)
-      else
-        echo -e "\033[38;5;196m"
-        echo " MongoDB is not running"
-        echo -e "\033[0m"
-      fi
- elif [ ! -d "$MONGODB_HOME" ]; then
+  if $(isMongoNeeded $1) || [ ! -z $(pidOf $MONGODB_PORT) ]; then
+    if [ -e "$MONGODB_PID" ]; then
+      echo -e "MongoDB PID"
+      echo $(cat $MONGODB_PID)
+    else
+      echo -e "\033[38;5;196m"
+      echo " MongoDB is not running"
+      echo -e "\033[0m"
+    fi
+  elif [ ! -d "$MONGODB_HOME" ]; then
     echo "MongoDB is not installed."
- else
+  else
     echo "MongoDB is not running"
   fi
 }
@@ -540,9 +566,9 @@ function mongoDbStatus(){
 function start() {
   startDeployer
   startSolr
- if isMongoNeeded $1; then
+  if isMongoNeeded $1; then
     startMongoDB
- fi
+  fi
   startTomcat
   printTailInfo
 }
@@ -560,7 +586,7 @@ function debug() {
 function stop() {
   stopTomcat
   if $(isMongoNeeded $1) || [ ! -z $(pidOf $MONGODB_PORT) ]; then
-     stopMongoDB
+    stopMongoDB
   fi
   stopSolr
   stopDeployer
@@ -577,41 +603,68 @@ function status(){
 function doBackup() {
   export TARGET_NAME=$1
   if [ -z "$TARGET_NAME" ]; then
-    if [ -x "$CRAFTER_HOME/dbms/bin/mysqldump" ]; then
+    if [ -f "$CRAFTER_BIN_DIR/apache-tomcat/webapps/studio.war" ]; then
       export TARGET_NAME="crafter-authoring-backup"
     else
       export TARGET_NAME="crafter-delivery-backup"
     fi
   fi
   export CURRENT_DATE=$(date +'%Y-%m-%d-%H-%M-%S')
-  export TARGET_FOLDER="$CRAFTER_ROOT/backups"
+  export TARGET_FOLDER="$CRAFTER_HOME/backups"
   export TARGET_FILE="$TARGET_FOLDER/$TARGET_NAME.$CURRENT_DATE.zip"
-  export TEMP_FOLDER="$CRAFTER_HOME/temp"
+  export TEMP_FOLDER="$CRAFTER_HOME/temp/backup"
 
+  echo "------------------------------------------------------------------------"
   echo "Starting backup into $TARGET_FILE"
+  echo "------------------------------------------------------------------------"
   mkdir -p "$TEMP_FOLDER"
   mkdir -p "$TARGET_FOLDER"
+
   if [ -f "$TARGET_FILE" ]; then
     rm "$TARGET_FILE"
   fi
 
   # MySQL Dump
   if [ -d "$MYSQL_DATA" ]; then
-    if [ -x "$CRAFTER_HOME/dbms/bin/mysqldump" ]; then
-      #Do dump
-      echo "Adding mysql dump"
-      $CRAFTER_HOME/dbms/bin/mysqldump --databases crafter --port=$MARIADB_PORT --protocol=tcp --user=root > "$TEMP_FOLDER/crafter.sql"
-      echo -e "SET GLOBAL innodb_large_prefix = TRUE ;\nSET GLOBAL innodb_file_format = 'BARRACUDA' ;\nSET GLOBAL innodb_file_format_max = 'BARRACUDA' ;\nSET GLOBAL innodb_file_per_table = TRUE ;\n$(cat $TEMP_FOLDER/crafter.sql)" > $TEMP_FOLDER/crafter.sql
+    # Start DB if necessary
+    DB_STARTED=false
+    if [ -z $(pidOf "$MARIADB_PORT") ]; then
+      mkdir -p "$CRAFTER_BIN_DIR/dbms"
+
+      echo "------------------------------------------------------------------------"
+      echo "Starting DB"
+      echo "------------------------------------------------------------------------"
+      java -jar -DmariaDB4j.port=$MARIADB_PORT -DmariaDB4j.baseDir="$CRAFTER_BIN_DIR/dbms" -DmariaDB4j.dataDir="$MYSQL_DATA" $CRAFTER_BIN_DIR/mariaDB4j-app.jar &
+      sleep 60
+      DB_STARTED=true
+    fi
+
+    #Do dump
+    echo "------------------------------------------------------------------------"
+    echo "Backing up mysql"
+    echo "------------------------------------------------------------------------"
+    $CRAFTER_BIN_DIR/dbms/bin/mysqldump --databases crafter --port=$MARIADB_PORT --protocol=tcp --user=root > "$TEMP_FOLDER/crafter.sql"
+    echo -e "SET GLOBAL innodb_large_prefix = TRUE ;\nSET GLOBAL innodb_file_format = 'BARRACUDA' ;\nSET GLOBAL innodb_file_format_max = 'BARRACUDA' ;\nSET GLOBAL innodb_file_per_table = TRUE ;\n$(cat $TEMP_FOLDER/crafter.sql)" > $TEMP_FOLDER/crafter.sql
+
+    if [ "$DB_STARTED" = true ]; then
+      # Stop DB
+      echo "------------------------------------------------------------------------"
+      echo "Stopping DB"
+      echo "------------------------------------------------------------------------"
+      kill $(cat mariadb4j.pid)
+      sleep 10
     fi
   fi
 
   # MongoDB Dump
   if [ -d "$MONGODB_DATA_DIR" ]; then
-    if [ -x "$CRAFTER_HOME/mongodb/bin/mongodump" ]; then
-      echo "Adding mongodb dump"
-      $CRAFTER_HOME/mongodb/bin/mongodump --port $MONGODB_PORT --out "$TEMP_FOLDER/mongodb" --quiet
+    if [ -x "$CRAFTER_BIN_DIR/mongodb/bin/mongodump" ]; then
+      echo "------------------------------------------------------------------------"
+      echo "Backing up mongodb"
+      echo "------------------------------------------------------------------------"
+      $CRAFTER_BIN_DIR/mongodb/bin/mongodump --port $MONGODB_PORT --out "$TEMP_FOLDER/mongodb" --quiet
       cd "$TEMP_FOLDER/mongodb"
-      java -jar $CRAFTER_HOME/craftercms-utils.jar zip . "$TEMP_FOLDER/mongodb.zip"
+      java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar zip . "$TEMP_FOLDER/mongodb.zip"
       cd ..
       rm -r mongodb
       cd ..
@@ -619,20 +672,38 @@ function doBackup() {
   fi
 
   # ZIP git repos
-  echo "Adding git repos"
-  cd "$CRAFTER_ROOT/data/repos"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar zip . "$TEMP_FOLDER/repos.zip"
+  if [ -d "$CRAFTER_DATA_DIR/repos" ]; then
+   echo "------------------------------------------------------------------------"
+   echo "Backing up git repos"
+   echo "------------------------------------------------------------------------"
+   cd "$CRAFTER_DATA_DIR/repos"
+   java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar zip . "$TEMP_FOLDER/repos.zip"
+  fi
+
   # ZIP solr indexes
-  echo "Adding solr indexes"
-  cd "$SOLR_INDEXES_DIR"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar zip . "$TEMP_FOLDER/indexes.zip"
+  if [ -d "$SOLR_INDEXES_DIR" ]; then
+   echo "------------------------------------------------------------------------"
+   echo "Backing up solr indexes"
+   echo "------------------------------------------------------------------------"
+   cd "$SOLR_INDEXES_DIR"
+   java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar zip . "$TEMP_FOLDER/indexes.zip"
+  fi
+
   # ZIP deployer data
-  echo "Adding deployer data"
-  cd "$DEPLOYER_DATA_DIR"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar zip . "$TEMP_FOLDER/deployer.zip"
+  if [ -d "$DEPLOYER_DATA_DIR" ]; then
+   echo "------------------------------------------------------------------------"
+   echo "Backing up deployer data"
+   echo "------------------------------------------------------------------------"
+   cd "$DEPLOYER_DATA_DIR"
+   java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar zip . "$TEMP_FOLDER/deployer.zip"
+  fi
+
   # ZIP everything (without compression)
+  echo "------------------------------------------------------------------------"
+  echo "Packaging everything"
+  echo "------------------------------------------------------------------------"
   cd "$TEMP_FOLDER"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar zip . "$TARGET_FILE" true
+  java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar zip . "$TARGET_FILE" true
 
   rm -rf "$TEMP_FOLDER"
   echo "Backup completed"
@@ -650,61 +721,82 @@ function doRestore() {
     help
     exit 1
   fi
-  export TEMP_FOLDER="$CRAFTER_HOME/temp"
+  export TEMP_FOLDER="$CRAFTER_HOME/temp/backup"
 
-  read -p "Warning, you're about to restore CrafterCMS from a backup, which will wipe the \
-existing sites and associated database and replace everything with the restored data. If you \
-care about the existing state of the system then stop this process, backup the system, and then \
-attempt the restore. Are you sure you want to proceed? (yes/no) "
-  if [ "$REPLY" != "yes" ]; then
+  read -p "Warning, you're about to restore CrafterCMS from a backup, which will wipe the\
+  existing sites and associated database and replace everything with the restored data. If you\
+  care about the existing state of the system then stop this process, backup the system, and then\
+  attempt the restore. Are you sure you want to proceed? (yes/no) "
+  if [ "$REPLY" != "yes" ] && [ "$REPLY" != "y" ]; then
     echo "Canceling restore"
     exit 0
   fi
 
+  echo "------------------------------------------------------------------------"
   echo "Clearing all existing data"
-  rm -rf $CRAFTER_ROOT/data/*
+  echo "------------------------------------------------------------------------"
+  rm -rf $CRAFTER_DATA_DIR/*
 
+  echo "------------------------------------------------------------------------"
   echo "Starting restore from $SOURCE_FILE"
+  echo "------------------------------------------------------------------------"
   mkdir -p "$TEMP_FOLDER"
 
   # UNZIP everything
-  java -jar $CRAFTER_HOME/craftercms-utils.jar unzip "$SOURCE_FILE" "$TEMP_FOLDER"
+  java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar unzip "$SOURCE_FILE" "$TEMP_FOLDER"
 
   # MongoDB Dump
   if [ -f "$TEMP_FOLDER/mongodb.zip" ]; then
+    echo "------------------------------------------------------------------------"
     echo "Restoring MongoDB"
+    echo "------------------------------------------------------------------------"
     startMongoDB
-    java -jar $CRAFTER_HOME/craftercms-utils.jar unzip "$TEMP_FOLDER/mongodb.zip" "$TEMP_FOLDER/mongodb"
-    $CRAFTER_HOME/mongodb/bin/mongorestore --port $MONGODB_PORT "$TEMP_FOLDER/mongodb" --quiet
+    java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar unzip "$TEMP_FOLDER/mongodb.zip" "$TEMP_FOLDER/mongodb"
+    $CRAFTER_BIN_DIR/mongodb/bin/mongorestore --port $MONGODB_PORT "$TEMP_FOLDER/mongodb" --quiet
   fi
 
   # UNZIP git repos
-  echo "Restoring git repos"
-  rm -rf "$CRAFTER_ROOT/data/repos/*"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar unzip "$TEMP_FOLDER/repos.zip" "$CRAFTER_ROOT/data/repos"
+  if [ -f "$TEMP_FOLDER/repos.zip" ]; then
+    echo "------------------------------------------------------------------------"
+    echo "Restoring git repos"
+    echo "------------------------------------------------------------------------"
+    java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar unzip "$TEMP_FOLDER/repos.zip" "$CRAFTER_DATA_DIR/repos"
+  fi
 
   # UNZIP solr indexes
-  echo "Restoring solr indexes"
-  rm -rf "$SOLR_INDEXES_DIR/*"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar unzip "$TEMP_FOLDER/indexes.zip" "$SOLR_INDEXES_DIR"
+  if [ -f "$TEMP_FOLDER/indexes.zip" ]; then
+    echo "------------------------------------------------------------------------"
+    echo "Restoring solr indexes"
+    echo "------------------------------------------------------------------------"
+    java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar unzip "$TEMP_FOLDER/indexes.zip" "$SOLR_INDEXES_DIR"
+  fi
 
   # UNZIP deployer data
-  echo "Restoring deployer data"
-  rm -rf "$DEPLOYER_DATA_DIR/*"
-  java -jar $CRAFTER_HOME/craftercms-utils.jar unzip "$TEMP_FOLDER/deployer.zip" "$DEPLOYER_DATA_DIR"
+  if [ -f "$TEMP_FOLDER/deployer.zip" ]; then
+    echo "------------------------------------------------------------------------"
+    echo "Restoring deployer data"
+    echo "------------------------------------------------------------------------"
+    java -jar $CRAFTER_BIN_DIR/craftercms-utils.jar unzip "$TEMP_FOLDER/deployer.zip" "$DEPLOYER_DATA_DIR"
+  fi
 
   # If it is an authoring env then sync the repos
   if [ -f "$TEMP_FOLDER/crafter.sql" ]; then
     mkdir "$MYSQL_DATA"
     #Start DB
+    echo "------------------------------------------------------------------------"
     echo "Starting DB"
-    java -jar -DmariaDB4j.port=$MARIADB_PORT -DmariaDB4j.baseDir="$CRAFTER_HOME/dbms" -DmariaDB4j.dataDir="$MYSQL_DATA" $CRAFTER_HOME/mariaDB4j-app.jar &
-    sleep 30
+    echo "------------------------------------------------------------------------"
+    java -jar -DmariaDB4j.port=$MARIADB_PORT -DmariaDB4j.baseDir="$CRAFTER_BIN_DIR/dbms" -DmariaDB4j.dataDir="$MYSQL_DATA" $CRAFTER_BIN_DIR/mariaDB4j-app.jar &
+    sleep 60
     # Import
+    echo "------------------------------------------------------------------------"
     echo "Restoring DB"
-    $CRAFTER_HOME/dbms/bin/mysql --user=root --port=$MARIADB_PORT --protocol=TCP --binary-mode < "$TEMP_FOLDER/crafter.sql"
+    echo "------------------------------------------------------------------------"
+    $CRAFTER_BIN_DIR/dbms/bin/mysql --user=root --port=$MARIADB_PORT --protocol=TCP --binary-mode < "$TEMP_FOLDER/crafter.sql"
     # Stop DB
+    echo "------------------------------------------------------------------------"
     echo "Stopping DB"
+    echo "------------------------------------------------------------------------"
     kill $(cat mariadb4j.pid)
     sleep 10
   fi
@@ -787,31 +879,31 @@ case $1 in
   status
   ;;
   backup)
-    doBackup $2
+  doBackup $2
   ;;
   restore)
-    doRestore $2
+  doRestore $2
   ;;
   status_tomcat)
-    studioStatus
+  studioStatus
   ;;
   status_deployer)
-    deployerStatus
+  deployerStatus
   ;;
   status_solr)
-    solrStatus
+  solrStatus
   ;;
   status_mongodb)
-    mongoDbStatus
+  mongoDbStatus
   ;;
   status_mariadb)
-    mariadbStatus
+  mariadbStatus
   ;;
   --v | --version)
-    version
+  version
   ;;
   man)
-    manPages
+  manPages
   ;;
   *)
   help

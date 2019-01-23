@@ -15,15 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.craftercms.bundle.utils;
+package upgrade.hooks
 
-/**
- * Created by cortiz on 4/27/17.
- */
-public interface Action {
+import java.nio.file.Path
 
-    void execute(String[] args);
+interface UpgradeHook {
 
-    void help();
-    
+	void preUpgrade(Path binFolder, Path newBinFolder)
+
+	void postUpgrade(Path binFolder)
+
 }
